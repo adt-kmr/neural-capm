@@ -1,0 +1,9 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "neural-capm"
+version = "0.1.0"
+description = "Neural network approaches for CAPM beta estimation"
+requires-python = ">=3.10"

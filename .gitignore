@@ -1,0 +1,32 @@
+# Data
+data/raw/
+data/interim/
+data/processed/
+
+# Results
+results/model_checkpoints/
+results/figures/
+results/tables/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Environment
+.env
+venv/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
