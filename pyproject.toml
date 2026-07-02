@@ -1,9 +1,14 @@
+# pyproject.toml
 [build-system]
-requires = ["setuptools>=64", "wheel"]
-build-backend = "setuptools.backends._legacy:_Backend"
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "neural-capm"
 version = "0.1.0"
-description = "Neural network approaches for CAPM beta estimation"
-requires-python = ">=3.10"
+description = "Dynamic beta estimation via neural CAPM"
+requires-python = ">=3.12,<3.13"
+dependencies = []
+
+[tool.setuptools.packages.find]
+where = ["src"]
