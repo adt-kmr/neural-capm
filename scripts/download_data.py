@@ -7,6 +7,7 @@ UNIVERSE = [
     "HINDUNILVR.NS", "ITC.NS", "LT.NS", "SBIN.NS", "BHARTIARTL.NS",
     "MARUTI.NS", "SUNPHARMA.NS",
 ]
+
 INDEX_TICKER = "^NSEI"
 START_DATE = "2015-01-01"
 END_DATE = "2024-12-31"
@@ -17,6 +18,10 @@ def save_ticker_df(ticker, df, out_dir):
     if df.empty:
         print(f"  WARNING: no data for {ticker} - skipping")
         return
+
+    if isinstance(df.columns, pd.MultiIndex):
+        df.columns = df.columns.get_level_values(0)
+
     out_path = out_dir / f"{ticker.replace('.', '_')}.csv"
     df.to_csv(out_path)
     print(f"  saved {ticker} -> {out_path.name}  ({len(df)} rows)")
