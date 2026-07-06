@@ -114,10 +114,12 @@ def build_full_feature_matrix(
     technical = build_technical_feature_matrix(
         stock_returns, momentum_window=momentum_window, vol_window=vol_window
     )
-    beta_target = compute_kalman_beta(stock_returns, market_returns).iloc[beta_burn_in:]
+    beta_full = compute_kalman_beta(stock_returns, market_returns)
+    beta_target = beta_full.iloc[beta_burn_in:]
+    lagged_beta = beta_full.shift(1).iloc[beta_burn_in:]  # beta_(t-1), safely known at time t
 
     full = pd.concat(
-        [macro, technical, beta_target.rename("beta_target")],
+        [macro, technical, lagged_beta.rename("lagged_beta"), beta_target.rename("beta_target")],
         axis=1,
         join="inner",
     ).dropna()

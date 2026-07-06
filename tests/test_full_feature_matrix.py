@@ -11,7 +11,7 @@ def test_full_feature_matrix_structure():
 
     result = build_full_feature_matrix(stock, market, beta_burn_in=90)
 
-    expected_columns = {"india_cpi", "india_10y_yield", "momentum", "volatility", "beta_target"}
+    expected_columns = {"india_cpi", "india_10y_yield", "momentum", "volatility", "lagged_beta", "beta_target"}
     assert set(result.columns) == expected_columns
     assert result.isna().sum().sum() == 0
     assert len(result) > 0
