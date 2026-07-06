@@ -39,3 +39,29 @@ def create_sequences(
         target_dates.append(dates[i])
 
     return np.array(X), np.array(y), pd.DatetimeIndex(target_dates)
+
+
+class FeatureScaler:
+    """
+    Standardizes features (zero mean, unit variance) using statistics
+    computed ONLY from training data, then applies that same
+    transformation to any other dataset (val/test) to avoid leakage.
+    """
+
+    def __init__(self):
+        self.mean_ = None
+        self.std_ = None
+
+    def fit(self, train_df: pd.DataFrame) -> "FeatureScaler":
+        self.mean_ = train_df.mean()
+        self.std_ = train_df.std()
+        return self
+
+    def transform(self, df: pd.DataFrame) -> pd.DataFrame:
+        if self.mean_ is None or self.std_ is None:
+            raise RuntimeError("FeatureScaler must be fit() before transform().")
+        return (df - self.mean_) / self.std_
+
+    def fit_transform(self, train_df: pd.DataFrame) -> pd.DataFrame:
+        self.fit(train_df)
+        return self.transform(train_df)
