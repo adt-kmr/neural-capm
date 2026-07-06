@@ -92,3 +92,34 @@ def build_technical_feature_matrix(returns: pd.Series, momentum_window: int = 20
         "volatility": compute_rolling_volatility(returns, window=vol_window),
     })
     return features
+
+
+def build_full_feature_matrix(
+    stock_returns: pd.Series,
+    market_returns: pd.Series,
+    beta_burn_in: int = 90,
+    momentum_window: int = 20,
+    vol_window: int = 20,
+) -> pd.DataFrame:
+    """
+    Assembles the complete, model-ready feature matrix for a single
+    stock: macro features + technical features + Kalman beta target,
+    all aligned and inner-joined on date, with no lookahead bias.
+    """
+    from neural_capm.finance.kalman_beta import compute_kalman_beta
+
+    daily_dates = stock_returns.index
+
+    macro = build_macro_feature_matrix(daily_dates)
+    technical = build_technical_feature_matrix(
+        stock_returns, momentum_window=momentum_window, vol_window=vol_window
+    )
+    beta_target = compute_kalman_beta(stock_returns, market_returns).iloc[beta_burn_in:]
+
+    full = pd.concat(
+        [macro, technical, beta_target.rename("beta_target")],
+        axis=1,
+        join="inner",
+    ).dropna()
+
+    return full
