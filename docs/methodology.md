@@ -96,3 +96,20 @@ Documenting real bugs encountered and fixed during this phase, since they reflec
 
 ## Phase 2: Neural Beta Estimation
 *(to be written as this phase is completed)*
+
+
+## Phase 2A: Feature Matrix Construction
+
+### Objective
+Build a complete, model-ready feature matrix per stock — macro conditions, technical signals, and a time-varying beta target — with no lookahead bias, as the direct input to Phase 2B's neural beta model.
+
+### Features
+- **Macro (FRED, India-specific):** CPI (`INDCPIALLMINMEI`, monthly), 10-Year Govt Bond Yield (`INDIRLTLT01STM`, monthly). Both forward-filled onto the daily trading calendar with realistic publication-lag offsets (CPI: 40 days; yield: 0 days, since it is a market-traded rate known same-day) to prevent macro data from leaking backward before its real-world release date.
+- **Technical (derived from existing price data):** 20-day compounded momentum, 20-day rolling volatility of daily returns. Both inherently backward-looking via pandas' `.rolling()`, requiring no special lookahead handling.
+- **Target:** Kalman-filtered beta (Phase 1), with the first 90 observations (filter burn-in) discarded, since Phase 1 established this as the best-performing classical adaptive beta estimator.
+
+### Key Design Decision: Publication-Lag-Aware Macro Alignment
+Naively forward-filling monthly macro data onto daily dates by calendar month would silently leak information — e.g., March's CPI figure is not published until roughly six weeks after month-end, but a naive join would make it "known" starting March 1st. Fixed by shifting each macro observation's effective date forward by its realistic publication lag before forward-filling. Verified via `tests/test_preprocessing.py::test_lagged_value_not_visible_before_publication`, which checks explicitly that a lagged value is NaN (unknown) before its true publication date and correctly available afterward.
+
+### Result
+A complete, tested, per-stock feature matrix (`data/processed/{ticker}_feature_matrix.csv`) for all 12 stocks in the universe, each with shape (2367, 5), zero missing values, and every feature verified to respect real-world information availability at each date. This is the direct input to Phase 2B model training.
