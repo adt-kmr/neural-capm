@@ -56,3 +56,22 @@ def compare_beta_methods(
         })
 
     return pd.DataFrame(results).set_index("method")
+
+
+def chronological_split(
+    df: pd.DataFrame,
+    train_end: str,
+    val_end: str,
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """
+    Splits a time-indexed DataFrame into train/val/test sets by date,
+    strictly in chronological order (no shuffling, no lookahead).
+
+    train:      index <= train_end
+    validation: train_end < index <= val_end
+    test:       index > val_end
+    """
+    train = df.loc[df.index <= train_end]
+    val = df.loc[(df.index > train_end) & (df.index <= val_end)]
+    test = df.loc[df.index > val_end]
+    return train, val, test
