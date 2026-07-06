@@ -65,3 +65,44 @@ class FeatureScaler:
     def fit_transform(self, train_df: pd.DataFrame) -> pd.DataFrame:
         self.fit(train_df)
         return self.transform(train_df)
+
+
+def create_delta_sequences(
+    features: pd.DataFrame,
+    target: pd.Series,
+    sequence_length: int = 30,
+):
+    """
+    Like create_sequences, but the model target is the CHANGE in beta
+    (target[i] - target[i-1]) rather than the raw level. This is the
+    standard fix for forecasting highly autocorrelated series: predicting
+    the level lets a trivial persistence baseline dominate; predicting
+    the change forces the model to learn genuine incremental dynamics.
+
+    Returns X, y_delta, target_dates, AND previous_beta (the beta value
+    immediately before each target date, needed to reconstruct the
+    actual predicted level later: predicted_level = previous_beta + y_delta_pred).
+    """
+    delta_target = target.diff().dropna()
+    aligned_features = features.loc[delta_target.index]
+
+    X, y_delta, target_dates, previous_beta = [], [], [], []
+    combined = aligned_features.join(delta_target.rename("__delta__"), how="inner")
+    feature_cols = [c for c in combined.columns if c != "__delta__"]
+
+    feature_values = combined[feature_cols].values
+    delta_values = combined["__delta__"].values
+    dates = combined.index
+
+    for i in range(sequence_length, len(combined)):
+        X.append(feature_values[i - sequence_length : i])
+        y_delta.append(delta_values[i])
+        target_dates.append(dates[i])
+        previous_beta.append(target.loc[:dates[i]].iloc[-2])  # beta value one day before target date
+
+    return (
+        np.array(X),
+        np.array(y_delta),
+        pd.DatetimeIndex(target_dates),
+        np.array(previous_beta),
+    )
