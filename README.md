@@ -45,11 +45,18 @@ Full results tables: [`results/tables/`](results/tables/) · Figures: [`results/
 
 ---
 
+## Phase 2 Finding (Complete)
+
+An LSTM conditioned on macro, technical, and lagged-beta features was tested against a naive "no change" (persistence) baseline for predicting daily changes in Kalman-filtered beta, across the full 12-stock universe. **The LSTM did not beat persistence on any of the 12 stocks** (MSE ratios 1.3x–6.4x worse). This is explained by the Kalman filter's own state equation, which models beta's increments as return-driven noise with no mechanism for macro/technical features to influence it — meaning a univariate filter has already extracted nearly all learnable signal from its own inputs. This motivates Phase 4's specific hypothesis: that *cross-company* information (sector/correlation-based lead-lag effects), which a univariate filter structurally cannot see, is a more promising channel for a neural model to add real value. Full writeup: `docs/methodology.md`.
+
+---
+
+
 ## Project Roadmap
 
 - [x] **Phase 0** — Foundations, repo setup, environment
 - [x] **Phase 1** — Classical baselines: static, rolling-window, and Kalman-filtered beta, with full statistical validation
-- [ ] **Phase 2** — Neural beta: LSTM/Transformer predicting β_t from macro + fundamental + technical features
+- [x] **Phase 2** — Neural beta: LSTM/Transformer predicting β_t from macro + fundamental + technical features
 - [ ] **Phase 3** — Uncertainty-aware beta: Bayesian Neural Network / MC-Dropout producing calibrated P(β)
 - [ ] **Phase 4** — Graph-temporal beta: GNN + temporal model conditioning beta on company relationship structure (novel contribution)
 - [ ] **Phase 5** — Portfolio construction, explainability (SHAP/Integrated Gradients), and final writeup
