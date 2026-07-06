@@ -95,21 +95,38 @@ Documenting real bugs encountered and fixed during this phase, since they reflec
 ---
 
 ## Phase 2: Neural Beta Estimation
-*(to be written as this phase is completed)*
 
 
-## Phase 2A: Feature Matrix Construction
+### 2.1 Objective
+Predict CAPM beta as a learned function of macro, technical, and lagged-beta features, using an LSTM, and evaluate whether this outperforms naive baselines.
 
-### Objective
-Build a complete, model-ready feature matrix per stock — macro conditions, technical signals, and a time-varying beta target — with no lookahead bias, as the direct input to Phase 2B's neural beta model.
+### 2.2 Features and Target
+- **Macro:** India CPI, India 10-Year Govt Bond Yield (FRED, publication-lag-aligned, see Phase 2A).
+- **Technical:** 20-day momentum, 20-day rolling volatility.
+- **Lagged beta:** beta_(t-1), included after an initial experiment showed the model badly underperformed a trivial persistence baseline without it.
+- **Target:** the CHANGE in Kalman-filtered beta (beta_t - beta_(t-1)), not the raw level. Predicting the level directly let a trivial persistence baseline dominate, since Kalman beta (under Q=1e-5) is highly autocorrelated day to day.
 
-### Features
-- **Macro (FRED, India-specific):** CPI (`INDCPIALLMINMEI`, monthly), 10-Year Govt Bond Yield (`INDIRLTLT01STM`, monthly). Both forward-filled onto the daily trading calendar with realistic publication-lag offsets (CPI: 40 days; yield: 0 days, since it is a market-traded rate known same-day) to prevent macro data from leaking backward before its real-world release date.
-- **Technical (derived from existing price data):** 20-day compounded momentum, 20-day rolling volatility of daily returns. Both inherently backward-looking via pandas' `.rolling()`, requiring no special lookahead handling.
-- **Target:** Kalman-filtered beta (Phase 1), with the first 90 observations (filter burn-in) discarded, since Phase 1 established this as the best-performing classical adaptive beta estimator.
+### 2.3 Evaluation Protocol
+Chronological train (2015-2021) / validation (2022) / test (2023-2024) split, sequences of 30 trading days, features scaled using training-set statistics only. Model predictions (deltas) are reconstructed into beta levels via `prev_beta + predicted_delta` and compared against two naive baselines: predicting the training-set mean beta, and predicting no change at all (persistence).
 
-### Key Design Decision: Publication-Lag-Aware Macro Alignment
-Naively forward-filling monthly macro data onto daily dates by calendar month would silently leak information — e.g., March's CPI figure is not published until roughly six weeks after month-end, but a naive join would make it "known" starting March 1st. Fixed by shifting each macro observation's effective date forward by its realistic publication lag before forward-filling. Verified via `tests/test_preprocessing.py::test_lagged_value_not_visible_before_publication`, which checks explicitly that a lagged value is NaN (unknown) before its true publication date and correctly available afterward.
+### 2.4 Results
 
-### Result
-A complete, tested, per-stock feature matrix (`data/processed/{ticker}_feature_matrix.csv`) for all 12 stocks in the universe, each with shape (2367, 5), zero missing values, and every feature verified to respect real-world information availability at each date. This is the direct input to Phase 2B model training.
+12-stock universe, test set (2023-2024). Full results: `results/tables/phase2_lstm_vs_persistence.csv`
+
+- **0 of 12 stocks**: the LSTM did not beat the naive persistence baseline on any stock.
+- LSTM-to-persistence MSE ratios ranged from **1.34x (HDFCBANK, closest) to 6.43x (ICICIBANK, furthest)** worse than persistence, with no stock crossing below 1.0.
+- The LSTM consistently and substantially beat the naive-mean baseline on every stock, confirming it learned *something* real (leaning on `lagged_beta`) — it simply did not learn enough to beat pure persistence.
+
+### 2.5 Interpretation — a structural finding, not a tuning failure
+
+This is a consistent, universe-wide result, not stock-specific noise, and it has a clear theoretical explanation rooted in how the training target itself was constructed. The Kalman filter's state equation:
+
+    beta_t = beta_(t-1) + w_t,   w_t ~ N(0, Q)
+
+models the day-to-day change in beta as a pure random innovation, injected only through the univariate return-based update step (stock return vs. market return for that one stock). Macro conditions, technical indicators, and cross-company information have **no mechanism to enter the target's own generative process** at all. For a series whose increments are close to a driftless random walk, the theoretically optimal one-step-ahead forecast of the increment is zero — which is exactly what the persistence baseline computes. Any model predicting a nonzero delta will tend to add expected error relative to this floor unless it uncovers genuine, exploitable structure — and across all 12 stocks, the LSTM's macro/technical/lagged-beta feature set did not find enough such structure to clear that bar.
+
+**Conclusion:** a neural model conditioned only on a single stock's own macro/technical state cannot be expected to meaningfully out-predict the increments of an already-adaptive, univariate Kalman filter, because the filter has already extracted essentially all the information its own inputs (that stock's returns, market returns) can offer, leaving near-irreducible noise. This motivates a genuine, structural change for Phase 4 rather than further tuning of the current approach (see below).
+
+### 2.6 Implication for Phase 4
+
+The univariate Kalman filter, by design, only ever looks at one stock's own returns against the market — it is structurally blind to any information from *other* companies. This is the one channel a neural model conditioned on additional data plausibly *could* exploit that the Kalman filter itself cannot: lead-lag and spillover effects, where a sector-mate's or correlated company's past return/volatility behavior carries predictive information about a stock's own future return surprises (and therefore its own future Kalman beta innovations) — a well-documented empirical phenomenon in equity markets, distinct from, and not already "used up" by, the univariate filter. Phase 4's graph-temporal model is therefore reframed around this specific, defensible hypothesis, rather than a generic "graphs might help" claim.
