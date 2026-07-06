@@ -62,3 +62,33 @@ def build_macro_feature_matrix(daily_dates: pd.DatetimeIndex) -> pd.DataFrame:
         features[name] = aligned
 
     return pd.DataFrame(features)
+
+
+def compute_momentum(returns: pd.Series, window: int = 20) -> pd.Series:
+    """
+    Trailing N-day cumulative return, computed WITHOUT lookahead:
+    momentum at date t uses only returns from (t-window, t], i.e. it
+    is known and available as of date t itself.
+    """
+    return (1 + returns).rolling(window=window).apply(lambda x: x.prod() - 1, raw=True)
+
+
+def compute_rolling_volatility(returns: pd.Series, window: int = 20) -> pd.Series:
+    """
+    Trailing N-day standard deviation of daily returns, no lookahead:
+    volatility at date t uses only returns from (t-window, t].
+    """
+    return returns.rolling(window=window).std()
+
+
+def build_technical_feature_matrix(returns: pd.Series, momentum_window: int = 20, vol_window: int = 20) -> pd.DataFrame:
+    """
+    Builds a DataFrame of technical features for a single stock's
+    return series, indexed by date, ready to be joined with macro
+    features and beta targets for model training.
+    """
+    features = pd.DataFrame({
+        "momentum": compute_momentum(returns, window=momentum_window),
+        "volatility": compute_rolling_volatility(returns, window=vol_window),
+    })
+    return features
