@@ -5,8 +5,7 @@ data/processed/
 
 # Results
 results/model_checkpoints/
-results/figures/
-results/tables/
+
 
 # Python
 __pycache__/
@@ -35,3 +34,4 @@ venv/
 # OS
 .DS_Store
 Thumbs.db
+.env
